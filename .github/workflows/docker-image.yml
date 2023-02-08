@@ -1,0 +1,42 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Login to ACR
+      uses: docker/login-action@v2
+      with:
+        registry: oaydoganacr.azurecr.io
+        username: oaydoganacr
+        password: ${{ secrets.AZURE_CLIENT_SECRET }}
+        
+    - name: Build and push
+      uses: docker/build-push-action@v4
+      with:
+        push: true
+        tags: oaydoganacr.azurecr.io/mydockerimage:latest
+        
+    - name: 'Login via Azure CLI'
+      uses: azure/login@v1
+      with:
+       creds: ${{ secrets.AZURE_CREDENTIALS }}
+       
+    - name: 'Set private registry authentication settings'
+      run: az webapp config container set --name oaydogan-app --resource-group oaydogan-rg --docker-registry-server-user oaydoganacr --docker-registry-server-password ${{ secrets.AZURE_CLIENT_SECRET }}
+      
+    - uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'oaydogan-app'
+        images: 'oaydoganacr.azurecr.io/mydockerimage:latest'
